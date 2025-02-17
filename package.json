@@ -1,0 +1,16 @@
+{
+  "name": "gata-bot",
+  "version": "1.0.0",
+  "description": "Multi-account bot for Gata.xyz with proxy support",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.7",
+    "ethers": "^5.7.2",
+    "https-proxy-agent": "^7.0.2"
+  },
+  "author": "",
+  "license": "MIT"
+}
