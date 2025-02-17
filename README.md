@@ -22,7 +22,7 @@ A Node.js bot that automates task completion for multiple Gata.xyz accounts with
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/QuantumLeap-us/Gataxyz-Bot.git
 cd gata-bot
 ```
 
