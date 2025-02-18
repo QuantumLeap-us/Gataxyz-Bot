@@ -1,115 +1,69 @@
-# Gata.xyz Multi-Account Bot
+# GATA DVA Automation Bot 🤖
 
-A Node.js bot that automates task completion for multiple Gata.xyz accounts with proxy support.
+An automation tool for GATA DVA tasks with multi-account and proxy support.
 
-## Features
+## Features ✨
 
-- Multi-account support
-- Proxy support for each account
-- Automatic task completion
-- Score calculation based on image captions
-- Centralized stats and token storage
-- Error handling and auto-restart
+- 🚀 Multi-account support
+- 🔒 Proxy support with IP rotation
+- 📊 Real-time status monitoring
+- 🔄 Automatic task processing
+- 🌐 Browser automation
+- 💎 Points tracking
+- 🛡️ Error handling and recovery
+- 📝 Detailed logging
 
-## Prerequisites
+## Prerequisites 📋
 
-- Node.js (v14 or higher)
+- Node.js v16 or higher
 - npm (Node Package Manager)
-- Ethereum wallet private keys
-- HTTP/HTTPS proxies
+- A list of private keys
+- A list of HTTP proxies
 
-## Installation
+## Installation 🔧
 
 1. Clone the repository:
-```bash
-git clone https://github.com/QuantumLeap-us/Gataxyz-Bot.git
-cd Gataxyz-Bot
-```
+   ```bash
+   git clone https://github.com/QuantumLeap-us/Gataxyz-Bot.git
+   cd Gata-Auto-Bot
+   ```
 
 2. Install dependencies:
-```bash
-npm install
-```
+   ```bash
+   npm install
+   ```
 
-3. Create required files:
+3. Install Playwright browsers:
+   ```bash
+   npx playwright install chromium
+   ```
 
-`pk.txt`: Add your private keys (one per line)
-```
-private_key_1
-private_key_2
-...
-```
+## Configuration ⚙️
 
-`proxies.txt`: Add your proxies (one per line)
-```
-http://host1:port1
-http://username:password@host2:port2
-...
-```
+1. Create `pk.txt` file with your private keys (one per line):
+   ```
+   0x123...abc
+   0x456...def
+   ```
 
-## Configuration
+2. Create `proxies.txt` file with your proxies (one per line):
+   ```
+   http://user:pass@ip:port
+   ip:port
+   ```
 
-The bot supports two proxy formats:
-- Simple: `http://host:port`
-- Authenticated: `http://username:password@host:port`
-
-Make sure you have:
-- Equal or more proxies than private keys
-- Valid Ethereum private keys (64 characters)
-
-## Usage
+## Usage 🎮
 
 Start the bot:
-```bash
-npm start
-```
+   ```bash
+   npm start
+   ```
 
 The bot will:
 1. Load private keys and proxies
-2. Initialize each account with its dedicated proxy
-3. Start task processing for each account
-4. Save stats and tokens in `all_stats.json` and `all_tokens.json`
+2. Initialize browser instances for each account
+3. Authenticate using private keys
+4. Start processing DVA tasks
+5. Monitor and display task status
 
-## Registration
-
-To get started with Gata.xyz:
-1. Visit [https://app.gata.xyz/](https://app.gata.xyz/)
-2. Use invitation code: `ngzxbox8`
-
-## File Structure
-
-- `main.js`: Main bot implementation
-- `pk.txt`: Private keys storage
-- `proxies.txt`: Proxy list
-- `all_stats.json`: Centralized stats storage
-- `all_tokens.json`: Centralized token storage
-
-## Monitoring
-
-The bot provides detailed logging:
-- Account-specific logs with proxy information
-- Task processing status
-- Points and rewards tracking
-- Error reporting
-
-## Error Handling
-
-The bot includes:
-- Automatic retry on failed tasks
-- Connection error handling
-- Invalid proxy/key detection
-- Auto-restart on critical errors
-
-## Security
-
-- Never share your private keys
-- Keep your `pk.txt` and `proxies.txt` secure
-- Don't commit sensitive files to version control
-
-## Contributing
-
-Feel free to submit issues and enhancement requests.
-
-## License
-
-This project is licensed under the MIT License. 
+## File Structure 📁 
