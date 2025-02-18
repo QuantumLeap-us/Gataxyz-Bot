@@ -63,16 +63,23 @@ async function takeScreenshot(page, description = '') {
 // Get authentication tokens using private key
 async function getAuthTokens(privateKey, proxy) {
     try {
-        // Create axios instance with proxy if provided
         let axiosInstance;
         if (proxy) {
             const tunnel = require('tunnel');
-            let proxyUrl = proxy.startsWith('http') ? proxy : `http://${proxy}`;
+            
+            // 解析代理URL
+            const proxyParts = proxy.match(/http:\/\/(.*):(.*)@(.*):(\d+)/);
+            if (!proxyParts) {
+                throw new Error('Invalid proxy format');
+            }
+
+            const [_, username, password, host, port] = proxyParts;
             
             const proxyConfig = {
                 proxy: {
-                    host: new URL(proxyUrl).hostname,
-                    port: parseInt(new URL(proxyUrl).port)
+                    host: host,
+                    port: parseInt(port),
+                    proxyAuth: `${username}:${password}`
                 }
             };
             
@@ -80,7 +87,10 @@ async function getAuthTokens(privateKey, proxy) {
             axiosInstance = axios.create({
                 httpsAgent: tunnelingAgent,
                 proxy: false,
-                timeout: 30000
+                timeout: 30000,
+                headers: {
+                    'Proxy-Authorization': `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`
+                }
             });
         } else {
             axiosInstance = axios;
@@ -288,40 +298,71 @@ async function keepSessionActive(page) {
 async function checkProxyIP(proxy) {
     try {
         const tunnel = require('tunnel');
-        let proxyUrl = proxy.startsWith('http') ? proxy : `http://${proxy}`;
+        
+        // 解析代理URL
+        const proxyParts = proxy.match(/http:\/\/(.*):(.*)@(.*):(\d+)/);
+        if (!proxyParts) {
+            throw new Error('Invalid proxy format');
+        }
+
+        const [_, username, password, host, port] = proxyParts;
         
         const proxyConfig = {
             proxy: {
-                host: new URL(proxyUrl).hostname,
-                port: parseInt(new URL(proxyUrl).port)
+                host: host,
+                port: parseInt(port),
+                proxyAuth: `${username}:${password}`
             }
         };
-        
+
         const tunnelingAgent = tunnel.httpsOverHttp(proxyConfig);
         const axiosInstance = axios.create({
             httpsAgent: tunnelingAgent,
             proxy: false,
-            timeout: 30000
+            timeout: 30000,
+            headers: {
+                'Proxy-Authorization': `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`
+            }
         });
 
-        const response = await axiosInstance.get('https://api.ipify.org?format=json');
+        // 使用 ipify API 获取实际 IP
+        const response = await axiosInstance.get('https://api.ipify.org?format=json', {
+            headers: {
+                'User-Agent': CONFIG.browser.userAgent
+            }
+        });
+
         return response.data.ip;
     } catch (error) {
-        console.error('Error checking proxy IP:', error.message);
-        return 'Unknown';
+        // 尝试使用备用 IP 检查服务
+        try {
+            const axiosInstance = axios.create({
+                httpsAgent: tunnelingAgent,
+                proxy: false,
+                timeout: 30000
+            });
+            
+            const backupResponse = await axiosInstance.get('https://ifconfig.me/ip');
+            return backupResponse.data.trim();
+        } catch (backupError) {
+            return 'Unknown';
+        }
     }
 }
 
 // 修改 startAccountTask 函数
 async function startAccountTask(page, tokens, browser, accountId, proxy) {
     try {
-        // 检查代理 IP
+        // Check proxy IP
         const proxyIP = await checkProxyIP(proxy);
-        console.log(formatLog(accountId, 'info', `Using proxy with IP: ${proxyIP}`));
+        console.log(formatLog(accountId, 'info', `${EMOJIS.proxy} Proxy IP: ${proxyIP}`));
+        console.log(formatLog(accountId, 'info', 'Navigating to DVA page...'));
 
-        console.log(formatLog(accountId, 'info', `Navigating to DVA page...`));
-        await page.goto(CONFIG.urls.base);
-        await waitForPageLoad(page);
+        // Increase page load timeout
+        await page.goto(CONFIG.urls.base, {
+            timeout: 60000, // Increase to 60 seconds
+            waitUntil: 'domcontentloaded' // Use domcontentloaded instead of load
+        });
         
         await setRequiredLocalStorage(page, tokens);
         console.log(formatLog(accountId, 'info', `Reloading page...`));
@@ -378,7 +419,7 @@ async function startAccountTask(page, tokens, browser, accountId, proxy) {
             await browser.close();
         }
     } catch (error) {
-        console.error(formatLog(accountId, 'error', `Error during execution:`, error));
+        console.error(formatLog(accountId, 'error', `Error during execution: ${error.message}`));
         await takeScreenshot(page, `Account-${accountId}-Fatal-error`);
         await browser.close();
     }
@@ -386,43 +427,46 @@ async function startAccountTask(page, tokens, browser, accountId, proxy) {
 
 // 修改 main 函数中的相关部分
 async function main() {
-    // 读取私钥和代理
+    // Check for required files
     if (!fs.existsSync('pk.txt')) {
-        console.error('Error: pk.txt file not found!');
+        console.error(formatLog(0, 'error', 'Error: pk.txt file not found!'));
         process.exit(1);
     }
 
     if (!fs.existsSync('proxies.txt')) {
-        console.error('Error: proxies.txt file not found!');
+        console.error(formatLog(0, 'error', 'Error: proxies.txt file not found!'));
         process.exit(1);
     }
 
+    // Load private keys and proxies
     const privateKeysText = fs.readFileSync('pk.txt', 'utf8');
     const privateKeys = privateKeysText.split(/[\r\n]+/).filter(key => key.trim().length > 0);
 
     const proxiesText = fs.readFileSync('proxies.txt', 'utf8');
     const proxies = proxiesText.split(/[\r\n]+/).filter(proxy => proxy.trim().length > 0);
 
+    // Validate proxy count
     if (proxies.length < privateKeys.length) {
-        console.error('Error: Not enough proxies for all accounts!');
-        console.log(`Found ${privateKeys.length} private keys but only ${proxies.length} proxies`);
+        console.error(formatLog(0, 'error', `Error: Not enough proxies for all accounts!`));
+        console.log(formatLog(0, 'info', `Found ${privateKeys.length} private keys but only ${proxies.length} proxies`));
         process.exit(1);
     }
 
-    console.log(`Found ${privateKeys.length} private keys and ${proxies.length} proxies\n`);
+    console.log(formatLog(0, 'info', `Found ${privateKeys.length} private keys and ${proxies.length} proxies`));
 
-    // 为每个账户创建一个浏览器实例
+    // Initialize browser instances for each account
     for (let i = 0; i < privateKeys.length; i++) {
         const privateKey = privateKeys[i].trim().startsWith('0x') ? 
             privateKeys[i].trim().slice(2) : privateKeys[i].trim();
         const proxy = proxies[i].trim();
 
-        console.log(`\nInitializing account ${i + 1}/${privateKeys.length}`);
+        console.log(formatLog(0, 'info', `Initializing account ${i + 1}/${privateKeys.length}`));
         
         try {
-            // 获取认证信息
+            // Get authentication tokens
             const tokens = await getAuthTokens(privateKey, proxy);
 
+            // Launch browser with proxy
             const browser = await chromium.launch({
                 headless: true,
                 proxy: {
@@ -432,6 +476,7 @@ async function main() {
                 args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
             });
             
+            // Create browser context and page
             const context = await browser.newContext({
                 viewport: CONFIG.browser.viewport,
                 userAgent: CONFIG.browser.userAgent
@@ -439,19 +484,19 @@ async function main() {
             
             const page = await context.newPage();
             
-            // 启动账户的任务处理，传入代理信息
+            // Start task processing
             startAccountTask(page, tokens, browser, i + 1, proxy).catch(error => {
-                console.error(`Error in account ${i + 1}:`, error);
+                console.error(formatLog(i + 1, 'error', `Error in account: ${error.message}`));
             });
 
-            // 等待一段时间再启动下一个账户
+            // Wait before starting next account
             if (i < privateKeys.length - 1) {
                 await new Promise(resolve => setTimeout(resolve, 10000));
             }
         } catch (error) {
-            console.error(`Error initializing account ${i + 1}:`, error);
+            console.error(formatLog(i + 1, 'error', `Error initializing account: ${error.message}`));
         }
     }
 }
 
-main().catch(console.error);
+main().catch(error => console.error(formatLog(0, 'error', `Fatal error: ${error.message}`)));
